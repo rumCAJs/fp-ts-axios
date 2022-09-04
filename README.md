@@ -1,1 +1,1 @@
-# FP-TS Axios
+# fp-ts Axios
