@@ -1,14 +1,9 @@
-import { TaskEither, map as mapTE, tryCatch } from 'fp-ts/TaskEither'
-import { Option, none, fromNullable, match as matchO } from 'fp-ts/Option'
+import { TaskEither, map as mapTE, tryCatch } from 'fp-ts/lib/TaskEither'
+import { Option, none, fromNullable, match as matchO } from 'fp-ts/lib/Option'
 import { identity, pipe } from 'fp-ts/lib/function'
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
-
-export interface NetworkError {
-	type: 'NetworkError'
-	message: string
-	code: number
-	url: string
-}
+import axios, { AxiosError } from 'axios'
+import type { AxiosInstance, AxiosRequestConfig } from 'axios'
+import { NetworkError } from './types'
 
 let _axios: Option<AxiosInstance> = none
 
@@ -18,59 +13,59 @@ let _axios: Option<AxiosInstance> = none
  * @returns AxiosInstance
  */
 export const configureAxios = (opts?: AxiosRequestConfig) =>
-	pipe(axios.create(opts), (a) => {
-		_axios = fromNullable(a)
-		return a
-	})
+  pipe(axios.create(opts), (a) => {
+    _axios = fromNullable(a)
+    return a
+  })
 
 const getAxios = (): AxiosInstance =>
-	pipe(_axios, matchO(configureAxios, identity))
+  pipe(_axios, matchO(configureAxios, identity))
 
 const request = <Response extends {}>(
-	requestConfig: AxiosRequestConfig,
-	customInstance?: AxiosInstance
+  requestConfig: AxiosRequestConfig,
+  customInstance?: AxiosInstance
 ): TaskEither<NetworkError, Response> => {
-	const axiosInstance = pipe(
-		fromNullable(customInstance),
-		matchO(getAxios, identity)
-	)
+  const axiosInstance = pipe(
+    fromNullable(customInstance),
+    matchO(getAxios, identity)
+  )
 
-	return pipe(
-		tryCatch(
-			() => {
-				return axiosInstance(requestConfig)
-			},
-			(reason) => {
-				const error = reason as AxiosError
-				return {
-					code: error?.response?.status || 500,
-					message: error?.response?.statusText || '',
-					type: 'NetworkError',
-					url: requestConfig.url,
-				} as NetworkError
-			}
-		),
-		mapTE((res) => res.data as Response)
-	)
+  return pipe(
+    tryCatch(
+      () => {
+        return axiosInstance(requestConfig)
+      },
+      (reason) => {
+        const error = reason as AxiosError
+        return {
+          code: error?.response?.status || 500,
+          message: error?.response?.statusText || '',
+          type: 'NetworkError',
+          url: requestConfig.url,
+        } as NetworkError
+      }
+    ),
+    mapTE((res) => res.data as Response)
+  )
 }
 
 const makeMethod =
-	(method: 'post' | 'put' | 'delete') =>
-	<Response extends {}>(
-		url: string,
-		body: object,
-		conf?: AxiosRequestConfig,
-		customInstance?: AxiosInstance
-	) =>
-		request<Response>(
-			{
-				...conf,
-				url,
-				method,
-				data: body,
-			},
-			customInstance
-		)
+  (method: 'post' | 'put' | 'delete') =>
+  <Response extends {}>(
+    url: string,
+    body: object,
+    conf?: AxiosRequestConfig,
+    customInstance?: AxiosInstance
+  ) =>
+    request<Response>(
+      {
+        ...conf,
+        url,
+        method,
+        data: body,
+      },
+      customInstance
+    )
 
 /**
  * GET request with given params
@@ -81,12 +76,12 @@ const makeMethod =
  * @returns TaskEither<NetworkError, Response>
  */
 export const get = <Response extends {}>(
-	url: string,
-	params?: object,
-	conf?: AxiosRequestConfig,
-	customInstance?: AxiosInstance
+  url: string,
+  params?: object,
+  conf?: AxiosRequestConfig,
+  customInstance?: AxiosInstance
 ): TaskEither<NetworkError, Response> =>
-	request<Response>({ ...conf, method: 'get', url, params }, customInstance)
+  request<Response>({ ...conf, method: 'get', url, params }, customInstance)
 
 /**
  * POST request with given body
@@ -119,10 +114,12 @@ export const put = makeMethod('put')
 export const del = makeMethod('delete')
 
 const methods = {
-	get,
-	post,
-	put,
-	del,
+  get,
+  post,
+  put,
+  del,
 } as const
 
 export default methods
+
+export type { NetworkError } from './types'
